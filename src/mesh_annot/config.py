@@ -1,1 +1,139 @@
+# THIS MODULE CONTAINS THE CONFIGURATION ITEMS, PRIMARILY DEFAULT VALUES, FOR THE mesh-annot LIBRARY.
 
+# The properties that act as inputs for the train function.
+properties = ('curvature', 'prf_x', 'prf_y', 'prf_cod')
+
+# The size of image to use as input.
+image_size = (128, 256)
+
+# The size of the latent space of the Variational GAE model.
+latent_dim = 1024*3
+
+# The number of epochs to train by default.
+epochs = 250
+
+# The default batch size.
+batch_size = 20
+
+# The size of the kernels used to downsample in the encoder.
+kernel_size = 3
+
+# The default dropout fraction.
+dropout = 0.1
+
+# The learning rate parameters.
+# Set the lr_decay to None to prevent plateau decay from being used.
+lr = 1e-4
+lr_min = 1e-5
+lr_patience = 10
+lr_decay = 0.8
+
+# The AdamW weight decay
+weight_decay = 1e-4
+
+# The KL-annealing parameters.
+kl_warmup = 50
+kl_beta_max = 1.0
+
+# If desired, we add noise to the data to improve the encoder.
+noise_std = None
+
+# NOT A HYPERPARAMETER: The default device is set here.
+import torch
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+del torch
+
+# Collects and returns the hyperparameters for training. All hyperparameters have default value of "Ellipsis",
+# any such value is replaced with the hyperparameter in the "mesh_annot.config" namespace.
+
+def hyperparams(
+    properties=Ellipsis,
+    image_size=Ellipsis,
+    latent_dim=Ellipsis,
+    epochs=Ellipsis,
+    batch_size=Ellipsis,
+    kernel_size=Ellipsis,
+    dropout=Ellipsis,
+    lr=Ellipsis,
+    lr_min=Ellipsis,
+    lr_patience=Ellipsis,
+    lr_decay=Ellipsis,
+    weight_decay=Ellipsis,
+    kl_warmup=Ellipsis,
+    kl_beta_max=Ellipsis,
+    noise_std=Ellipsis
+):
+    from . import config as cfg
+    properties = cfg.properties if properties is Ellipsis else properties
+    image_size = cfg.image_size if image_size is Ellipsis else image_size
+    latent_dim = cfg.latent_dim if latent_dim is Ellipsis else latent_dim
+    epochs = cfg.epochs if epochs is Ellipsis else epochs
+    batch_size = cfg.batch_size if batch_size is Ellipsis else batch_size
+    kernel_size = cfg.kernel_size if kernel_size is Ellipsis else kernel_size
+    dropout = cfg.dropout if dropout is Ellipsis else dropout
+    lr = cfg.lr if lr is Ellipsis else lr
+    lr_min = cfg.lr_min if lr_min is Ellipsis else lr_min
+    lr_patience = cfg.lr_patience if lr_patience is Ellipsis else lr_patience
+    lr_decay = cfg.lr_decay if lr_decay is Ellipsis else lr_decay
+    weight_decay = cfg.weight_decay if weight_decay is Ellipsis else weight_decay
+    kl_warmup = cfg.kl_warmup if kl_warmup is Ellipsis else kl_warmup
+    kl_beta_max = cfg.kl_beta_max if kl_beta_max is Ellipsis else kl_beta_max
+    noise_std = cfg.noise_std if noise_std is Ellipsis else noise_std
+    
+    return dict(
+        properties=properties,
+        image_size=image_size,
+        latent_dim=latent_dim,
+        epochs=epochs,
+        batch_size=batch_size,
+        kernel_size=kernel_size,
+        dropout=dropout,
+        lr=lr,
+        lr_min=lr_min,
+        lr_patience=lr_patience,
+        lr_decay=lr_decay,
+        weight_decay=weight_decay,
+        kl_warmup=kl_warmup,
+        kl_beta_max=kl_beta_max,
+        noise_std=noise_std
+    )
+
+# Wraps a function such that any training hyperparameters it takes are
+# automatically filled in with default values from the mesh_annot.config
+# namespace if they are equal to "Ellipsis"
+
+def wrap_opts(fn):
+    import inspect
+    from functools import wraps
+    from . import config as cfg
+    
+    # Get the signature of the function
+    sig = inpsect.signature(fn)
+    hpsig = inspect.signature(hyperparams)
+    
+    opts = [
+        k
+        for k in sig.parameters.keys()
+        if hasattr(cfg, k) and 'hyperparam' not in k
+    ]
+    
+    # Make the decorated function
+    @wraps(fn)
+    def decorated_fn(*args, **kwargs):
+        bound = sig.bind_partial(*args, **kwargs)
+        bound.apply_defaults()
+        for opt in opts:
+            if bound.arguments.get(opt, Ellipsis) is Ellipsis:
+                bound.arguments[opt] = getattr(cfg, opt)
+        if 'hyperparams' in sig.parameters:
+            bound.arguments['hyperparameters'] = hyperparams(
+                **{
+                    k:bound.arguments[k]
+                    for k in hpsig.parameters.keys()
+                    if k in bound.arguments
+                }
+            
+            )
+            
+        return fn(*bound.args, **bound.kwargs)
+    return decorated_fn
