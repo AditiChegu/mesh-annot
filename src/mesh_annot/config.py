@@ -6,9 +6,6 @@ properties = ('curvature', 'prf_x', 'prf_y', 'prf_cod')
 # The size of image to use as input.
 image_size = (128, 256)
 
-# The size of the latent space of the Variational GAE model.
-latent_dim = 1024*3
-
 # The number of epochs to train by default.
 epochs = 200
 
@@ -45,7 +42,6 @@ del torch
 def hyperparams(
     properties=Ellipsis,
     image_size=Ellipsis,
-    latent_dim=Ellipsis,
     epochs=Ellipsis,
     batch_size=Ellipsis,
     kernel_size=Ellipsis,
@@ -60,7 +56,6 @@ def hyperparams(
     from . import config as cfg
     properties = cfg.properties if properties is Ellipsis else properties
     image_size = cfg.image_size if image_size is Ellipsis else image_size
-    latent_dim = cfg.latent_dim if latent_dim is Ellipsis else latent_dim
     epochs = cfg.epochs if epochs is Ellipsis else epochs
     batch_size = cfg.batch_size if batch_size is Ellipsis else batch_size
     kernel_size = cfg.kernel_size if kernel_size is Ellipsis else kernel_size
@@ -75,7 +70,6 @@ def hyperparams(
     return dict(
         properties=properties,
         image_size=image_size,
-        latent_dim=latent_dim,
         epochs=epochs,
         batch_size=batch_size,
         kernel_size=kernel_size,
