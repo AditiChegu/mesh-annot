@@ -10,13 +10,13 @@ image_size = (128, 256)
 latent_dim = 1024*3
 
 # The number of epochs to train by default.
-epochs = 250
+epochs = 200
 
 # The default batch size.
 batch_size = 20
 
 # The size of the kernels used to downsample in the encoder.
-kernel_size = 3
+kernel_size = 5
 
 # The default dropout fraction.
 dropout = 0.1
@@ -30,10 +30,6 @@ lr_decay = 0.8
 
 # The AdamW weight decay
 weight_decay = 1e-4
-
-# The KL-annealing parameters.
-kl_warmup = 50
-kl_beta_max = 1.0
 
 # If desired, we add noise to the data to improve the encoder.
 noise_std = None
@@ -59,8 +55,6 @@ def hyperparams(
     lr_patience=Ellipsis,
     lr_decay=Ellipsis,
     weight_decay=Ellipsis,
-    kl_warmup=Ellipsis,
-    kl_beta_max=Ellipsis,
     noise_std=Ellipsis
 ):
     from . import config as cfg
@@ -76,8 +70,6 @@ def hyperparams(
     lr_patience = cfg.lr_patience if lr_patience is Ellipsis else lr_patience
     lr_decay = cfg.lr_decay if lr_decay is Ellipsis else lr_decay
     weight_decay = cfg.weight_decay if weight_decay is Ellipsis else weight_decay
-    kl_warmup = cfg.kl_warmup if kl_warmup is Ellipsis else kl_warmup
-    kl_beta_max = cfg.kl_beta_max if kl_beta_max is Ellipsis else kl_beta_max
     noise_std = cfg.noise_std if noise_std is Ellipsis else noise_std
     
     return dict(
@@ -93,8 +85,6 @@ def hyperparams(
         lr_patience=lr_patience,
         lr_decay=lr_decay,
         weight_decay=weight_decay,
-        kl_warmup=kl_warmup,
-        kl_beta_max=kl_beta_max,
         noise_std=noise_std
     )
 
