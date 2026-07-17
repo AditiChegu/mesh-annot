@@ -1,34 +1,20 @@
 # THIS MODULE CONTAINS THE CONFIGURATION ITEMS, PRIMARILY DEFAULT VALUES, FOR THE mesh-annot LIBRARY.
 
-# The properties that act as inputs for the train function.
+# The properties that act as inputs for the train function from the HCP library
+# TODO There are many properties available via neuropythy for our brain mesh-- take a look at
+# the results to cortex.properties.keys()
 properties = ('curvature', 'prf_x', 'prf_y', 'prf_cod')
 
-# The size of image to use as input.
 image_size = (128, 256)
-
-# The number of epochs to train by default.
 epochs = 200
-
-# The default batch size.
 batch_size = 20
-
-# The size of the kernels used to downsample in the encoder.
 kernel_size = 5
-
-# The default dropout fraction.
 dropout = 0.1
-
-# The learning rate parameters.
-# Set the lr_decay to None to prevent plateau decay from being used.
 lr = 1e-4
 lr_min = 1e-5
 lr_patience = 10
-lr_decay = 0.8
-
-# The AdamW weight decay
+lr_decay = 0.8 # Set the lr_decay to None to prevent plateau decay from being used.
 weight_decay = 1e-4
-
-# If desired, we add noise to the data to improve the encoder.
 noise_std = None
 
 # NOT A HYPERPARAMETER: The default device is set here.
@@ -38,7 +24,6 @@ del torch
 
 # Collects and returns the hyperparameters for training. All hyperparameters have default value of "Ellipsis",
 # any such value is replaced with the hyperparameter in the "mesh_annot.config" namespace.
-
 def hyperparams(
     properties=Ellipsis,
     image_size=Ellipsis,
@@ -85,7 +70,6 @@ def hyperparams(
 # Wraps a function such that any training hyperparameters it takes are
 # automatically filled in with default values from the mesh_annot.config
 # namespace if they are equal to "Ellipsis"
-
 def wrap_opts(fn):
     import inspect
     from functools import wraps
