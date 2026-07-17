@@ -1,10 +1,11 @@
 from pathlib import Path
 import torch
-import config as cfg
+from . import config as cfg
 
 class HCPDataset(torch.utils.data.Dataset):
     # TODO Implement the rest of the helper functions.
-    # TODO Add a function to help load the graph data in. 
+    # TODO Add a function to help load the graph data in.
+    @cfg.wrap_opts
     def __init__(
         self, 
         base_path, 
