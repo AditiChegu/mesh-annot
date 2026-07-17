@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from torch_geometric.utils import to_undirected
-from torch_geometric.utils import SplineConv
+from torch_geometric.nn import SplineConv
 
 class SplineGCN(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
