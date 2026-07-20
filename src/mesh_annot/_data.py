@@ -45,7 +45,6 @@ class GraphDataset(torch.utils.data.Dataset):
         return self.data[k].to(self.device)
 
 class ImageDataset(torch.utils.data.Dataset):
-    # TODO Add a function to help load the graph data in.
     @staticmethod
     def _prop_list(base_path):
         return [
@@ -68,6 +67,20 @@ class ImageDataset(torch.utils.data.Dataset):
         )
 
         return im[0,0]
+
+    def _load_prop(self, name, sid, rater=None):
+        prop_dirpath = self.base_path / name
+        if rater is None:
+            impaths = prop_dirpath.glob(f"*_{sid}.pt")
+            impath = next(impaths)
+        else:
+            impath = prop_dirpath / f"{rater}_{sid}.pt"
+
+        # Load the property and reshape if needed
+        prop = torch.load(impath, weights_only=True)
+        prop = self._resize(prop)
+        
+        return prop
         
     
     @cfg.wrap_opts
