@@ -125,7 +125,9 @@ class ImageDataset(torch.utils.data.Dataset):
         for rater in raters:
             for sid in sids:
                 for (pii, propname) in enumerate(properties):
-                    # TODO Implement the rest of this.
+                    prop = self._load_prop(propname, sid, rater)
+                    self.data[ii, pii, ...] = prop
+                ii += 1
         
     def __len__(self):
         return self.data.shape[0]
