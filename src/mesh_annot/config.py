@@ -16,6 +16,7 @@ lr_patience = 10
 lr_decay = 0.8 # Set the lr_decay to None to prevent plateau decay from being used.
 weight_decay = 1e-4
 noise_std = None
+outputs = 1
 
 # NOT A HYPERPARAMETER: The default device is set here.
 import torch
@@ -36,7 +37,8 @@ def hyperparams(
     lr_patience=Ellipsis,
     lr_decay=Ellipsis,
     weight_decay=Ellipsis,
-    noise_std=Ellipsis
+    noise_std=Ellipsis,
+    outputs=Ellipsis
 ):
     from . import config as cfg
     properties = cfg.properties if properties is Ellipsis else properties
@@ -51,6 +53,7 @@ def hyperparams(
     lr_decay = cfg.lr_decay if lr_decay is Ellipsis else lr_decay
     weight_decay = cfg.weight_decay if weight_decay is Ellipsis else weight_decay
     noise_std = cfg.noise_std if noise_std is Ellipsis else noise_std
+    outputs = cfg.outputs if outputs is Ellipsis else outputs
     
     return dict(
         properties=properties,
