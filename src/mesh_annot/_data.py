@@ -2,7 +2,7 @@ from pathlib import Path
 import torch
 from . import config as cfg
 
-class GraphDataset(torch.utils.data.Dataset):
+class HCPDataset(torch.utils.data.Dataset):
     @staticmethod
     def _prop_list(base_path):
         return [
