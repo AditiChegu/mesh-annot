@@ -10,14 +10,23 @@ class GraphDataset(torch.utils.data.Dataset):
             for p in base_path.iter_dir()
             if p.is_dir() and not p.name.startswith('.')
         ]
-    # TODO Add the rest of the helper methods
+    def _load_prop(self, name, sid, raters=None):
+        prop_dirpath = os.path.join(self.base_path, name)
+        if rater is None:
+            impaths = prop_dirpath.glob(f"*_{sid}.pt")
+            impath = next(impaths)
+        else:
+            impath = prop_dirpath / f"{rater}_{sid}.pt"
+        prop = torch.load(impath, weights_only=True)
+        
+        return prop
+    
     def __init__(
         self,
         base_path,
         sids,
         *,
         properties=Ellipsis,
-        graph_size=Ellipsis,
         device=Ellipsis,
         raters=None
     ):
@@ -42,10 +51,16 @@ class GraphDataset(torch.utils.data.Dataset):
         nprops = len(properties)
         nsids = len(sids)
         nraters = len(raters)
+        dset_dims = (nraters * nsids, nprops)
 
-        # TODO Figure out how to load in multiple subjects and interpolate their native graphs onto
-        # the fsaverage brain mesh and make it a dataset
-        
+        self.data = torch.zeroes(dset_dims)
+        ii = 0
+        for rater in raters:
+            for sid in sids:
+                for (pii, ppropnames) in enumerate(properties):
+                    prop = self._load_prop(propname, sid, rater)
+                    self.data[ii, pii, ...] = prop
+                ii += 1
         
     def __len__(self):
         return self.data.shape[0]
