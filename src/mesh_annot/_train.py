@@ -11,12 +11,16 @@ import pandas as pd
 from ._model import SplineGCN
 from . import config as cfg
 
-# TODO The rest of this
-# NB Make sure that when we use the Dataloaders() function for the graph data,
-# we use the torch_geometric version
+# TODO Utilities
+    # Need to calculate Dice and BCE loss.
+    # Need to find a good combination to use such that we can optimize on it,
+    # we can look to the visual-autolabel calculations for this. 
+    # We also need to figure out how the loss is one of the outputs of the training loop.
+    # Worth checking cortexae for this part.
 
 # TODO Epoch Functions
-
+    # TODO trn_epoch()
+    # TODO val_epoch()
 # TODO Training Runs
 
 # TODO Model Build Function
@@ -24,11 +28,12 @@ from . import config as cfg
 def model(
     *,
     properties=Ellipsis,
-    outputs=Ellipsis,
     device=Ellipsis
 ):
-    model = SplineGCN(len(properties), outputs)
-
+    from ._model import SplineGCN
+    model = SplineGCN(len(properties), 1)
     return model.to(device)
     
 # TODO Main Training Loop Function
+    # NB Make sure that when we use the Dataloaders() function for the graph data,
+    # we use the torch_geometric version.
