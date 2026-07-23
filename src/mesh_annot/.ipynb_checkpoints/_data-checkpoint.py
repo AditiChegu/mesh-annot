@@ -1,11 +1,11 @@
 import neuropythy as ny
 from pathlib import Path
 import torch
+import torch_geometric
 from . import config as cfg
 import numpy as np
 
-# TODO Need to change to a pytorch_geometric dataset
-class HCPDataset(torch.utils.data.Dataset):
+class HCPDataset(torch_geometric.data.Dataset):
     @staticmethod
     def _prop_list(base_path):
         return [
@@ -20,7 +20,8 @@ class HCPDataset(torch.utils.data.Dataset):
             impath = str(next(impaths))
         else:
             impath = prop_dirpath / f"{sid}.*.mgz"
-        prop = ny.load(impath)
+        prop_mgz = ny.load(impath)
+        prop = np.asarray(prop_mgz).astype(dtype=np.float32)
         return prop
         
     @cfg.wrap_opts
@@ -54,7 +55,7 @@ class HCPDataset(torch.utils.data.Dataset):
         nprops = len(properties)
         nsids = len(sids)
         nraters = len(raters)
-        dset_dims = (nraters * nsids, nprops)
+        dset_dims = (nraters * nsids, nprops, 163842)
 
         self.data = torch.zeros(dset_dims)
         ii = 0
@@ -62,7 +63,7 @@ class HCPDataset(torch.utils.data.Dataset):
             for sid in sids:
                 for (pii, propname) in enumerate(properties):
                     prop = self._load_prop(propname, sid, rater)
-                    self.data[ii, pii, ...] = prop
+                    self.data[ii, pii, ...] = torch.from_numpy(prop).float()
                 ii += 1
         
     def __len__(self):

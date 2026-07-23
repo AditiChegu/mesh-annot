@@ -1,9 +1,6 @@
 # THIS MODULE CONTAINS THE CONFIGURATION ITEMS, PRIMARILY DEFAULT VALUES, FOR THE mesh-annot LIBRARY.
 
-# The properties that act as inputs for the train function from the HCP library
-# TODO There are many properties available via neuropythy for our brain mesh-- take a look at
-# the results to cortex.properties.keys()
-properties = ('convexity','myelin','thickness','curvature') # 'prf_x', 'prf_y', 'prf_cod'
+properties = ('convexity','myelin','thickness','curvature', 'prf_x', 'prf_y', 'prf_cod', 'prf_sigma')
 
 image_size = (128, 256)
 epochs = 200
