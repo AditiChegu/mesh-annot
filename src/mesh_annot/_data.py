@@ -83,24 +83,19 @@ class HCPDataset(torch_geometric.data.Dataset):
         self.lh_graphs = {}
         self.rh_graphs = {}
         for sid in sids:
-            lh_mesh_path = os.path.join(self.base_path, f"{sid}.lh.mesh")
-            rh_mesh_path = os.path.join(self.base_path, f"{sid}.rh.mesh")
+            for hem in ['lh', 'rh']:
+                mesh_path = os.path.join(self.base_path, f'{sid}.{hem}.mesh')
+                mesh = ny.load(mesh_path, 'freesurfer_geometry')
+                vertices = mesh.coordinates
+                edges = mesh.tess.edges
+                graph = self.create_graph(vertices=vertices, edges=edges)
 
-            lh_mesh = ny.load(lh_mesh_path, 'freesurfer_geometry')
-            rh_mesh = ny.load(rh_mesh_path, 'freesurfer_geometry')
-            
-            lh_vertices = lh_mesh.coordinates
-            rh_vertices = rh_mesh.coordinates
-            
-            lh_edges = lh_mesh.tess.edges
-            rh_edges = rh_mesh.tess.edges
+                if hem == 'lh':
+                    self.lh_graphs[sid] = graph
+                else:
+                    self.rh_graphs[sid] = graph
 
-            lh_graph = self.create_graph(lh_vertices, lh_edges)
-            rh_graph = self.create_graph(rh_vertices, rh_edges)
-
-            self.lh_graphs[sid] = lh_graph
-            self.rh_graphs[sid] = rh_graph
-            print("Saved:", sid)
+                print(f"saved {sid}, {hem}")
 
         self.data = torch.zeros(dset_dims)
         ii = 0
