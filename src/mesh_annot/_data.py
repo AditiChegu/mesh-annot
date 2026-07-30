@@ -99,7 +99,7 @@ class HCPDataset(torch_geometric.data.Dataset):
 
     def __len__(self):
         # TODO Is this even right?
-        return self.graph_data.shape[0]
+        return len(self.graph_data)
 
     def __getitem__(self, k):
         # TODO
