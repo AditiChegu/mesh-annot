@@ -10,50 +10,30 @@ import torch_geometric
 from torch_geometric.utils import to_undirected
 from torch_geometric.data import Data
 
-
 class HCPDataset(torch_geometric.data.Dataset):
-    def create_graph(self, vertices, edges):
+    def _graph_info(self, vertices, edges):
         if edges.shape[0] == 2 and edges.shape[1] != 2:
             edges = edges.T
-
         edge_index = torch.tensor(edges.T, dtype=torch.long)
         edge_index = to_undirected(edge_index)
-        x_coords = torch.tensor(vertices.T, dtype=torch.long)
 
-        src = x_coords[edge_index[0]]
-        trg = x_coords[edge_index[1]]
+        x = torch.tensor(vertices.T, dtype=torch.long)
+        src = x[edge_index[0]]
+        trg = x[edge_index[1]]
         edge_attr = src - trg
         edge_attr = (edge_attr - edge_attr.min()) / (edge_attr.max() - edge_attr.min())
 
-        graph_data = Data(x=x_coords, edge_index=edge_index, edge_attr=edge_attr)
-        
-        return graph_data
-        
-    @staticmethod
-    def _prop_list(base_path):
-        return [
-            p.name
-            for p in base_path.iter_dir()
-            if p.is_dir() and not p.name.startswith('.')
-        ]
-    def _load_prop(self, name, sid, raters=None):
-        prop_dirpath = self.base_path / name
-        if raters is None:
-            impaths = prop_dirpath.glob(f"{sid}.*.mgz")
-            impath = str(next(impaths))
-        else:
-            impath = prop_dirpath / f"{sid}.*.mgz"
-        prop_mgz = ny.load(impath)
-        prop = np.asarray(prop_mgz).astype(dtype=np.float32)
-        return prop
-        
+        return x, edge_index, edge_attr
+
     @cfg.wrap_opts
     def __init__(
         self,
         base_path,
         sids,
         *,
+        hemisphere=Ellipsis,
         properties=Ellipsis,
+        target=Ellipsis,
         device=Ellipsis,
         raters=None
     ):
@@ -66,6 +46,7 @@ class HCPDataset(torch_geometric.data.Dataset):
         self.base_path = base_path
 
         self.sids = sids
+        self.hemisphere = hemisphere
 
         self.raters = raters
         if raters is None:
@@ -80,33 +61,47 @@ class HCPDataset(torch_geometric.data.Dataset):
         nraters = len(raters)
         dset_dims = (nraters * nsids, nprops, 163842)
 
-        self.lh_graphs = {}
-        self.rh_graphs = {}
-        for sid in sids:
-            for hem in ['lh', 'rh']:
-                mesh_path = os.path.join(self.base_path, f'{sid}.{hem}.mesh')
-                mesh = ny.load(mesh_path, 'freesurfer_geometry')
-                vertices = mesh.coordinates
-                edges = mesh.tess.edges
-                graph = self.create_graph(vertices=vertices, edges=edges)
+        self.graph_data = {}
 
-                if hem == 'lh':
-                    self.lh_graphs[sid] = graph
-                else:
-                    self.rh_graphs[sid] = graph
-
-                print(f"saved {sid}, {hem}")
-
-        self.data = torch.zeros(dset_dims)
-        ii = 0
         for rater in raters:
             for sid in sids:
-                for (pii, propname) in enumerate(properties):
-                    prop = self._load_prop(propname, sid, rater)
-                    self.data[ii, pii, ...] = torch.from_numpy(prop).float()
-                ii += 1
-        
+                mesh_path = os.path.join(self.base_path, f'{sid}.{hemisphere}.mesh')
+                mesh = ny.load(mesh_path, 'freesurfer_geometry')
+                vertices = mesh.coordinates
+
+                edge_path = os.path.join(self.base_path, f'edges/{sid}.{hemisphere}.pt')
+                edges = torch.load(edge_path, weights_only=False)
+
+                x_coords, edge_index, edge_attr = self._graph_info(vertices=vertices, edges=edges)
+
+                target_path = os.path.join(self.base_path, f'{target}/{sid}.{hemisphere}.mgz')
+                target_mgz = ny.load(target_path)
+                # TODO This part will likely need fixing.
+                target_arr = target_mgz.byteswap().view(target_mgz.dtype.newbyteorder())
+                y = torch.tensor(target_arr, dtype=torch.float).unsqueeze(1)
+                
+                # TODO Need to figure out how to load in other properties.
+                # This feels very... slow. I am not a fan of the iteration. 
+                prop_list = []
+                for prop in properties:
+                    prop_path = os.path.join(self.base_path, prop, f'{sid}.{hemisphere}.mgz')
+                    prop_mgz = ny.load(prop_path)
+                    # TODO Fix this !!! This was what it was previously:
+                    # prop = torch.tensor(prop_mgz).astype(dtype=torch.float32)
+                    prop_arr = prop_mgz.byteswap().view(prop_mgz.dtype.newbyteorder())
+                    prop = torch.tensor(prop_arr, dtype=torch.float).unsqueeze(1)
+                    prop_list.append(prop)
+
+                all_props = torch.cat(prop_list, dim=1)
+                x = torch.cat([x_coords, all_props], dim=1)
+
+                self.graph_data[sid] = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
+
     def __len__(self):
-        return self.data.shape[0]
+        # TODO Is this even right?
+        return self.graph_data.shape[0]
+
     def __getitem__(self, k):
-        return self.data[k].to(self.device)
+        # TODO
+        sid = self.sids[k]
+        return self.graph_data[sid].to(self.device)
