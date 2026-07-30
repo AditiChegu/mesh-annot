@@ -1,6 +1,6 @@
 # THIS MODULE CONTAINS THE CONFIGURATION ITEMS, PRIMARILY DEFAULT VALUES, FOR THE mesh-annot LIBRARY.
 
-properties = ('convexity','myelin','thickness','curvature', 'prf_x', 'prf_y', 'prf_cod', 'prf_sigma')
+properties = ('convexity','myelin','thickness', 'prf_x', 'prf_y', 'prf_cod', 'prf_sigma')
 
 image_size = (128, 256)
 epochs = 200
@@ -13,7 +13,8 @@ lr_patience = 10
 lr_decay = 0.8 # Set the lr_decay to None to prevent plateau decay from being used.
 weight_decay = 1e-4
 noise_std = None
-outputs = 1
+target = 'curvature' # !!! THIS WAS CHANGED FROM 1 to a str !!!
+hemisphere = 'lh'
 
 # NOT A HYPERPARAMETER: The default device is set here.
 import torch
@@ -36,7 +37,7 @@ def hyperparams(
     lr_decay=Ellipsis,
     weight_decay=Ellipsis,
     noise_std=Ellipsis,
-    outputs=Ellipsis
+    target=Ellipsis
 ):
     from . import config as cfg
     properties = cfg.properties if properties is Ellipsis else properties
@@ -52,7 +53,8 @@ def hyperparams(
     lr_decay = cfg.lr_decay if lr_decay is Ellipsis else lr_decay
     weight_decay = cfg.weight_decay if weight_decay is Ellipsis else weight_decay
     noise_std = cfg.noise_std if noise_std is Ellipsis else noise_std
-    outputs = cfg.outputs if outputs is Ellipsis else outputs
+    target = cfg.target if target is Ellipsis else target
+    hemisphere = cfg.hemisphere if hemisphere is Ellipsis else hemisphere
     
     return dict(
         properties=properties,
@@ -67,7 +69,9 @@ def hyperparams(
         lr_patience=lr_patience,
         lr_decay=lr_decay,
         weight_decay=weight_decay,
-        noise_std=noise_std
+        noise_std=noise_std,
+        target=target,
+        hemisphere=hemisphere
     )
 
 # Wraps a function such that any training hyperparameters it takes are
