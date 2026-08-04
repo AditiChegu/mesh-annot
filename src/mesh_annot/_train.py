@@ -93,7 +93,6 @@ RunBase = namedtuple(
 
 class Run(RunBase):
     __slots__ = ()
-    # TODO What doescls mean here?
     def __new__(
         cls,
         hyperparams,
@@ -125,7 +124,7 @@ class Run(RunBase):
         # Save the model
         torch.save(self.model.state_dict(), os.path.join(dirpath, model_filename))
         # Save the hyperparameters
-        with os.path.join(dirpath, hyperparams_filename).open('w') as fl:
+        with Path(os.path.join(dirpath, hyperparams_filename)).open('w') as fl:
             json.dump(self.hyperparams, fl)
         # Save the history
         self.history.to_csv(os.path.join(dirpath, history_filename), sep='\t', index=False)
@@ -169,26 +168,26 @@ class Run(RunBase):
         history = pd.read_csv(os.path.join(dirpath, history_filename), sep='\t')
         return cls(hp, mdl, history, loss_colname=loss_colname)
 
-    def loadrun(
+def loadrun(
+    dirpath,
+    /,
+    *,
+    no_model=False,
+    model_filename='weights.pt',
+    hyperparams_filename='hyperparams.json',
+    history_filename='history.tsv',
+    loss_colname='val_total',
+    device=Ellipsis
+):
+    return Run.load(
         dirpath,
-        /,
-        *,
-        no_model=False,
-        model_filename='weights.pt',
-        hyperparams_filename='hyperparams.json',
-        history_filename='history.tsv',
-        loss_colname='val_total',
-        device=Ellipsis
-    ):
-        return Run.load(
-            dirpath,
-            no_model=no_model,
-            model_filename=model_filename,
-            hyperparams_filename=hyperparams_filename,
-            history_filename=history_filename,
-            loss_colname=loss_colname,
-            device=device
-        )
+        no_model=no_model,
+        model_filename=model_filename,
+        hyperparams_filename=hyperparams_filename,
+        history_filename=history_filename,
+        loss_colname=loss_colname,
+        device=device
+    )
 
 # MODEL BUILD FUNCTION
 @cfg.wrap_opts
@@ -202,7 +201,8 @@ def model(
     from ._model import SplineGCN
     mdl = SplineGCN(
         in_channels= 3 + len(properties),
-        out_channels= len(target),
+        # TODO This might need to change
+        out_channels= 1,
         dropout=dropout
     )
     return mdl.to(device)
@@ -330,38 +330,38 @@ def train(
                 f'trn {trn_losses['total']: <9.3f} || '
                 f'val {val_losses['total']: <9.3f}'
             )
-            if val_losses['total'] < best_val:
-                best_val = val_losses['total']
-                best_mdl = model.state_dict()
-                saved = True
-            else:
-                saved = False
-
-            hentry = {
-                'epoch': epochno,
-                'lr': step_lr
-            }
-            for (k, v) in trn_losses.items():
-                hentry[f'trn_{k}'] = v
-            for (k, v) in val_losses.items():
-                hentry[f'val_{k}'] = v
-            hentry['saved'] = saved
-            history.append(hentry)
-
-        history = pd.DataFrame(history)
-        model.load_state_dict(best_mdl)
-
-        # Make a run object to save the model, if requested
-        run = Run(hyperparams, model, history)
-        if savedir is not None:
-            run.save(
-                savedir,
-                mkdir=mkdir,
-                model_filename=model_filename,
-                hyperparams_filename=hyperparams_filename,
-                history_filename=history_filename
-            )
-        if loss_only:
-            return best_val
+        if val_losses['total'] < best_val:
+            best_val = val_losses['total']
+            best_mdl = model.state_dict()
+            saved = True
         else:
-            return run
+            saved = False
+
+        hentry = {
+            'epoch': epochno,
+            'lr': step_lr
+        }
+        for (k, v) in trn_losses.items():
+            hentry[f'trn_{k}'] = v
+        for (k, v) in val_losses.items():
+            hentry[f'val_{k}'] = v
+        hentry['saved'] = saved
+        history.append(hentry)
+
+    history = pd.DataFrame(history)
+    model.load_state_dict(best_mdl)
+
+    # Make a run object to save the model, if requested
+    run = Run(hyperparams, model, history)
+    if savedir is not None:
+        run.save(
+            savedir,
+            mkdir=mkdir,
+            model_filename=model_filename,
+            hyperparams_filename=hyperparams_filename,
+            history_filename=history_filename
+        )
+    if loss_only:
+        return best_val
+    else:
+        return run
