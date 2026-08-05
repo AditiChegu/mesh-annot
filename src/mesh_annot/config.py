@@ -1,6 +1,6 @@
 # THIS MODULE CONTAINS THE CONFIGURATION ITEMS, PRIMARILY DEFAULT VALUES, FOR THE mesh-annot LIBRARY.
 
-properties = ('convexity','myelin','thickness', 'prf_x', 'prf_y', 'prf_cod', 'prf_sigma')
+properties = ('convexity','myelin','thickness') # 'prf_x', 'prf_y', 'prf_cod', 'prf_sigma'
 
 image_size = (128, 256)
 epochs = 200
@@ -25,28 +25,25 @@ del torch
 # any such value is replaced with the hyperparameter in the "mesh_annot.config" namespace.
 def hyperparams(
     properties=Ellipsis,
-    image_size=Ellipsis,
     epochs=Ellipsis,
     batch_size=Ellipsis,
     kernel_size=Ellipsis,
     dropout=Ellipsis,
-    device=Ellipsis,
     lr=Ellipsis,
     lr_min=Ellipsis,
     lr_patience=Ellipsis,
     lr_decay=Ellipsis,
     weight_decay=Ellipsis,
     noise_std=Ellipsis,
-    target=Ellipsis
+    target=Ellipsis,
+    hemisphere=Ellipsis
 ):
     from . import config as cfg
     properties = cfg.properties if properties is Ellipsis else properties
-    image_size = cfg.image_size if image_size is Ellipsis else image_size
     epochs = cfg.epochs if epochs is Ellipsis else epochs
     batch_size = cfg.batch_size if batch_size is Ellipsis else batch_size
     kernel_size = cfg.kernel_size if kernel_size is Ellipsis else kernel_size
     dropout = cfg.dropout if dropout is Ellipsis else dropout
-    device = cfg.device if device is Ellipsis else device
     lr = cfg.lr if lr is Ellipsis else lr
     lr_min = cfg.lr_min if lr_min is Ellipsis else lr_min
     lr_patience = cfg.lr_patience if lr_patience is Ellipsis else lr_patience
@@ -63,7 +60,6 @@ def hyperparams(
         batch_size=batch_size,
         kernel_size=kernel_size,
         dropout=dropout,
-        device=device,
         lr=lr,
         lr_min=lr_min,
         lr_patience=lr_patience,
