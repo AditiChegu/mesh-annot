@@ -82,6 +82,8 @@ class HCPDataset(torch_geometric.data.Dataset):
                 x_coords, edge_index, edge_attr = self._graph_info(vertices=vertices, edges=edges)
 
                 y = self._load_prop(prop=target, sid=sid, hemisphere=hemisphere)
+                y_mask = torch.isnan(y)
+                y[y_mask] = 0.0
 
                 # Setting all the NaN prf values to zero.
                 prf_x = self._load_prop('prf_x', sid, hemisphere)
