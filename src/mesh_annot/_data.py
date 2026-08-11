@@ -25,6 +25,13 @@ class HCPDataset(torch_geometric.data.Dataset):
 
         return x, edge_index, edge_attr
 
+    def _load_prop(self, prop, sid, hemisphere):
+        prop_path = os.path.join(self.base_path, prop, f'{sid}.{hemisphere}.mgz')
+        prop_mgz = ny.load(prop_path)
+        prop_arr = prop_mgz.byteswap().view(prop_mgz.dtype.newbyteorder())
+        prop = torch.tensor(prop_arr, dtype=torch.float).unsqueeze(1)
+        return prop
+
     @cfg.wrap_opts
     def __init__(
         self,
@@ -74,23 +81,36 @@ class HCPDataset(torch_geometric.data.Dataset):
 
                 x_coords, edge_index, edge_attr = self._graph_info(vertices=vertices, edges=edges)
 
-                target_path = os.path.join(self.base_path, f'{target}/{sid}.{hemisphere}.mgz')
-                target_mgz = ny.load(target_path)
-                # TODO This part will likely need fixing.
-                target_arr = target_mgz.byteswap().view(target_mgz.dtype.newbyteorder())
-                y = torch.tensor(target_arr, dtype=torch.float).unsqueeze(1)
+                y = self._load_prop(prop=target, sid=sid, hemisphere=hemisphere)
+
+                # Setting all the NaN prf values to zero.
+                prf_x = self._load_prop('prf_x', sid, hemisphere)
+                prf_y = self._load_prop('prf_y', sid, hemisphere)
+                prf_sigma = self._load_prop('prf_sigma', sid, hemisphere)
+                prf_cod = self._load_prop('prf_cod', sid, hemisphere)
+                
+                mask = torch.isnan(prf_x) | torch.isnan(prf_y) | torch.isnan(prf_sigma) | torch.isnan(prf_cod)
+                
+                prf_x[mask] = 0.0
+                prf_y[mask] = 0.0
+                prf_sigma[mask] = 0.0
+                prf_cod[mask] = 0.0
                 
                 # TODO Need to figure out how to load in other properties.
-                # This feels very... slow. I am not a fan of the iteration. 
+                # This feels very... slow. I am not a fan of the iteration.
                 prop_list = []
-                for prop in properties:
-                    prop_path = os.path.join(self.base_path, prop, f'{sid}.{hemisphere}.mgz')
-                    prop_mgz = ny.load(prop_path)
-                    # TODO Fix this !!! This was what it was previously:
-                    # prop = torch.tensor(prop_mgz).astype(dtype=torch.float32)
-                    prop_arr = prop_mgz.byteswap().view(prop_mgz.dtype.newbyteorder())
-                    prop = torch.tensor(prop_arr, dtype=torch.float).unsqueeze(1)
-                    prop_list.append(prop)
+                for prop_name in properties:
+                    if prop_name == 'prf_x':
+                        prop_list.append(prf_x)
+                    elif prop_name == 'prf_y':
+                        prop_list.append(prf_y)
+                    elif prop_name == 'prf_sigma':
+                        prop_list.append(prf_cod)
+                    elif prop_name == 'prf_cod':
+                        prop_list.append(prf_sigma)
+                    else:
+                        prop = self._load_prop(prop_name, sid, hemisphere)
+                        prop_list.append(prop)
 
                 all_props = torch.cat(prop_list, dim=1)
                 x = torch.cat([x_coords, all_props], dim=1)
