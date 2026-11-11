@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch_geometric.loader import DataLoader
 
-from ._model import SplineGCN
+from ._model import SplineUNet
 from . import config as cfg
 
 # TODO Utilities
@@ -32,15 +32,15 @@ def trn_epoch(
     model,
     loader,
     optimizer,
+    lr,
     *,
     noise_std=Ellipsis,
     device=Ellipsis
 ):
     model.train()
     loss_total = 0.0
-    # TODO Check if there is a better place to intialize these values
-    lr = 0.01
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+#     optimizer = optim.Adam(model.parameters(), lr=lr) #lr=lr was lr=0.1
+    optimizer.zero_grad()
     criterion = torch.nn.MSELoss()
     
     for batch in loader:
@@ -48,6 +48,9 @@ def trn_epoch(
         optimizer.zero_grad()
         output = model(add_noise(batch, noise_std=noise_std))
         loss = criterion(output, batch.y)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
         loss_total += loss.detach().item()
         
     n = len(loader)
@@ -63,15 +66,13 @@ def val_epoch(
     model,
     loader,
     optimizer,
+    lr,
     *,
     noise_std=Ellipsis,
     device=Ellipsis
 ):
     model.eval()
     loss_total = 0.0
-    # TODO Check if there is a better place to intialize these values
-    lr = 0.01
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.MSELoss()
 
     for batch in loader:
@@ -198,12 +199,12 @@ def model(
     dropout=Ellipsis,
     device=Ellipsis
 ):
-    from ._model import SplineGCN
-    mdl = SplineGCN(
+    from ._model import SplineUNet
+    mdl = SplineUNet(
         in_channels= 3 + len(properties),
         # TODO This might need to change
-        out_channels= 1,
-        dropout=dropout
+        out_channels= 1
+#         dropout=dropout
     )
     return mdl.to(device)
 
@@ -309,7 +310,8 @@ def train(
             trn_loader,
             optimizer,
             noise_std=noise_std,
-            device=device
+            device=device,
+            lr=step_lr # TEST
         )
         val_losses = val_epoch(
             epochno,
@@ -317,18 +319,19 @@ def train(
             val_loader,
             optimizer,
             noise_std=noise_std,
-            device=device
+            device=device,
+            lr=step_lr # TEST
         )
 
         if torch.isnan(torch.tensor(val_losses['total'])):
-            raise RunTimeError(f'NaN loss value on epoch {epochno}')
+            raise RuntimeError(f'NaN loss value on epoch {epochno}')
         scheduler.step(val_losses['total'])
         if (epochno + 1) % 10 == 0 and log is not None:
             log (
                 f'Epoch {epochno + 1: 04d} || '
                 f'LR {step_lr*1e4: 8.6f}e-4 || '
-                f'trn {trn_losses['total']: <9.3f} || '
-                f'val {val_losses['total']: <9.3f}'
+                f'trn {trn_losses["total"]: <9.3f} || '
+                f'val {val_losses["total"]: <9.3f}'
             )
         if val_losses['total'] < best_val:
             best_val = val_losses['total']
