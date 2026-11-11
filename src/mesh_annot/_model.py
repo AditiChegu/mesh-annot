@@ -1,21 +1,12 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from torch_geometric.utils import to_undirected
 from torch_geometric.nn import SplineConv
 from torch_geometric.nn import TopKPooling
 
-# TODO Need to add pooling layers.
-# We need to resample the output of every layer onto the next lower
-# resolution of available fsaverage maps (as a reminder, the options in decreasing order of resolution are
-# fsaverage, fsaverage6, fsaverage5, fsaverage4, fsaverage3).
-
-# TODO Need to figure out if it is feasible to add pooling layers because if we pool the graph, then we lose
-# information about the edge_attr i.e., the stuff the splineconv needs to work. 
-
-# TODO Consider if a built-in GraphUNet is good enough.
-# TODO I think whenever we do figure out if it is possible to combine splineconvs with pooling and move to that 
-# two (three) stream architecture, we should look into pool.voxel_grid 
+from . import config as cfg
 
 class SplineGCN(torch.nn.Module):
     def __init__(self, in_channels, out_channels, dropout=0.2):
@@ -49,27 +40,55 @@ class SplineGCN(torch.nn.Module):
 
         return x
 
-class EncoderBlock(nn.Module):
-	@cfg.wrap_opts
-	def __init__(self, in_channels, *, dropout, kernel_size):
-		super().__init__()
-		# TODO Implement the rest of this.
-	def forward(self, x):
-		# TODO Implement the rest of this.
-		return x
-class DecoderBlock(nn.Module):
-	@cfg.wrap_opts
-	def __init__(self, in_channels, dropout, kernel_size):
-		super().__init__()
-		# TODO Implement the rest of this.
-	def forward(self, x):
-		# TODO Implement the rest of this.
-		return x
 class SplineUNet(nn.Module):
-	@cfg.wrap_opts
-	def __init__(self, in_channels, dropout, kernel_size):
-		super().__init__()
-		# TODO Implement the rest of this.
-	def forward(self, x):
-		# TODO Implement the rest of this
-		return x
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        # Encoder
+        self.conv1 = SplineConv(in_channels, 16, dim=3, kernel_size=5)
+        self.pool1 = TopKPooling(16, ratio=0.5)
+        
+        self.conv2 = SplineConv(16, 32, dim=3, kernel_size=5)
+        self.pool2 = TopKPooling(32, ratio=0.5)
+        
+        # Bottleneck
+        self.bottleneck = SplineConv(32, 32, dim=3, kernel_size=5)
+        
+        # Decoder (input channels accounting for skip connections) 
+        self.conv3 = SplineConv(32+32, 16, dim=3, kernel_size=5)
+        self.conv4 = SplineConv(16+16, out_channels, dim=3, kernel_size=5)
+
+    def forward(self, data):
+        # Encoder
+        x, edge_index, pseudo, batch = data.x, data.edge_index, data.edge_attr, data.batch
+        x0 = self.conv1(x, edge_index, pseudo)
+        x0 = F.relu(x0)
+        skip0 = x0
+        
+        x0_pooled, edge_index0, pseudo0, batch0, perm0, score0 = self.pool1(x0, edge_index, edge_attr=pseudo, batch=batch)
+        
+        # Encoder
+        x1 = self.conv2(x0_pooled, edge_index0, pseudo0)
+        x1 = F.relu(x1)
+        skip1 = x1
+        
+        x1_pooled, edge_index1, edge_attr1, batch1, perm1, score1 = self.pool2(x1, edge_index0, edge_attr=pseudo0, batch=batch0)
+        
+        # Bottleneck
+        x_bottleneck = self.bottleneck(x1_pooled, edge_index1, edge_attr1)
+        x_bottleneck = F.relu(x_bottleneck)
+        
+        # Decoder
+        x_up1 = torch.zeros_like(skip1)
+        x_up1[perm1] = x_bottleneck
+        x_up1 = torch.cat([x_up1, skip1], dim=-1) # Some places also just add this, like perm1 + skip1
+        x2 = self.conv3(x_up1, edge_index0, pseudo0)
+        x2 = F.relu(x2)
+        
+        # Decoder
+        x_up0 = torch.zeros_like(skip0)
+        x_up0[perm0] = x2
+        x_up0 = torch.cat([x_up0, skip0], dim=-1)
+        
+        x = self.conv4(x_up0, edge_index, pseudo)
+        # TODO Consider adding a relu here.
+        return x
